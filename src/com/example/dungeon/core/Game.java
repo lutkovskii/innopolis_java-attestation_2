@@ -37,7 +37,6 @@ public class Game {
             String dir = args.get(0).toLowerCase(Locale.ROOT);
             Room current = ctx.getCurrent();
 
-            // Особая логика: из пещеры на север — в сокровищницу
             if ("Пещера".equals(current.getName()) && "north".equals(dir)) {
                 if (ctx.isTreasureDoorUnlocked()) {
                     Room treasure = new Room("Сокровищница", "Вы нашли сокровища! Победа!");
@@ -161,7 +160,6 @@ public class Game {
             Runtime rt = Runtime.getRuntime();
             long before = rt.totalMemory() - rt.freeMemory();
 
-            // Создаём много временных объектов (например, списки строк)
             List<List<String>> garbage = new ArrayList<>();
             for (int i = 0; i < 10_000; i++) {
                 List<String> chunk = new ArrayList<>();
@@ -174,13 +172,9 @@ public class Game {
             long afterAlloc = rt.totalMemory() - rt.freeMemory();
             System.out.println("Память после выделения: " + (afterAlloc - before) / 1024 + " КБ");
 
-            // Очищаем ссылку — объекты становятся мусором
             garbage = null;
-
-            // Подсказка GC (не гарантирует немедленного запуска!)
             System.gc();
 
-            // Ждём немного, чтобы GC успел поработать (в учебных целях)
             try { Thread.sleep(100); } catch (InterruptedException ignored) {}
 
             long afterGC = rt.totalMemory() - rt.freeMemory();
@@ -202,7 +196,6 @@ public class Game {
         forest.getNeighbors().put("east", cave);
         cave.getNeighbors().put("west", forest);
 
-        // 🔑 Ключ в пещере
         cave.getItems().add(new Key("Старинный ключ"));
 
         forest.getItems().add(new Potion("Малое зелье", 5));
