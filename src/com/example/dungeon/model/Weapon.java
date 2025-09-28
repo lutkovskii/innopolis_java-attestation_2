@@ -1,6 +1,8 @@
 package com.example.dungeon.model;
 
 public class Weapon extends Item {
+    private static final long serialVersionUID = 1L;
+
     private final int bonus;
 
     public Weapon(String name, int bonus) {

@@ -1,8 +1,11 @@
 package com.example.dungeon.model;
 
+import java.io.Serializable;
 import java.util.*;
 
-public class Room {
+public class Room implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private final String name;
     private final String description;
     private final Map<String, Room> neighbors = new HashMap<>();
@@ -14,25 +17,11 @@ public class Room {
         this.description = description;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public Map<String, Room> getNeighbors() {
-        return neighbors;
-    }
-
-    public List<Item> getItems() {
-        return items;
-    }
-
-    public Monster getMonster() {
-        return monster;
-    }
-
-    public void setMonster(Monster m) {
-        this.monster = m;
-    }
+    public String getName() { return name; }
+    public Map<String, Room> getNeighbors() { return neighbors; }
+    public List<Item> getItems() { return items; }
+    public Monster getMonster() { return monster; }
+    public void setMonster(Monster m) { this.monster = m; }
 
     public String describe() {
         StringBuilder sb = new StringBuilder(name + ": " + description);

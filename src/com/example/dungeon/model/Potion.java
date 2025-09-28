@@ -1,6 +1,8 @@
 package com.example.dungeon.model;
 
 public class Potion extends Item {
+    private static final long serialVersionUID = 1L;
+
     private final int heal;
 
     public Potion(String name, int heal) {

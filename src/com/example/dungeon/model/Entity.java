@@ -1,6 +1,10 @@
 package com.example.dungeon.model;
 
-public abstract class Entity {
+import java.io.Serializable;
+
+public abstract class Entity implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String name;
     private int hp;
 

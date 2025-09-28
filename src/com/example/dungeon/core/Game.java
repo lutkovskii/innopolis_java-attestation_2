@@ -1,7 +1,5 @@
 package com.example.dungeon.core;
-
 import com.example.dungeon.model.*;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -23,6 +21,7 @@ public class Game {
 
     private void registerCommands() {
         commands.put("help", (ctx, a) -> System.out.println("Команды: " + String.join(", ", commands.keySet())));
+        commands.put("about", (ctx, a) -> System.out.println("DungeonMini — консольная RPG. Версия 1.0. Автор: [Вадим Лутковский]"));
         commands.put("gc-stats", (ctx, a) -> {
             Runtime rt = Runtime.getRuntime();
             long free = rt.freeMemory(), total = rt.totalMemory(), used = total - free;
@@ -37,6 +36,21 @@ public class Game {
             }
             String dir = args.get(0).toLowerCase(Locale.ROOT);
             Room current = ctx.getCurrent();
+
+            // Особая логика: из пещеры на север — в сокровищницу
+            if ("Пещера".equals(current.getName()) && "north".equals(dir)) {
+                if (ctx.isTreasureDoorUnlocked()) {
+                    Room treasure = new Room("Сокровищница", "Вы нашли сокровища! Победа!");
+                    treasure.getItems().add(new Weapon("Меч короля", 10));
+                    ctx.setCurrent(treasure);
+                    System.out.println("Вы вошли в Сокровищницу!");
+                    System.out.println(treasure.describe());
+                    return;
+                } else {
+                    throw new InvalidCommandException("Дверь заперта. Нужен ключ.");
+                }
+            }
+
             Room next = current.getNeighbors().get(dir);
             if (next == null) {
                 throw new InvalidCommandException("Нельзя пойти на " + dir);
@@ -76,10 +90,8 @@ public class Game {
                 System.out.println("Инвентарь пуст.");
                 return;
             }
-
             Map<String, List<Item>> grouped = inv.stream()
                     .collect(Collectors.groupingBy(item -> item.getClass().getSimpleName()));
-
             grouped.forEach((type, items) -> {
                 String names = items.stream()
                         .map(Item::getName)
@@ -106,7 +118,7 @@ public class Game {
             if (toUse == null) {
                 throw new InvalidCommandException("У вас нет предмета '" + itemName + "'");
             }
-            toUse.apply(ctx); // полиморфизм: вызов apply() конкретного подкласса
+            toUse.apply(ctx);
         });
 
         // TODO-5: fight
@@ -117,36 +129,63 @@ public class Game {
                 System.out.println("В комнате нет монстра.");
                 return;
             }
-
             Player player = ctx.getPlayer();
             int playerDmg = player.getAttack();
             monster.setHp(monster.getHp() - playerDmg);
             System.out.println("Вы бьёте " + monster.getName() + " на " + playerDmg + ". HP монстра: " + monster.getHp());
-
             if (monster.getHp() <= 0) {
                 System.out.println("Монстр побеждён!");
                 room.setMonster(null);
                 return;
             }
-
-            // Монстр атакует
-            int monsterDmg = 1; // можно расширить модель Monster позже
+            int monsterDmg = 1;
             player.setHp(player.getHp() - monsterDmg);
             System.out.println("Монстр отвечает на " + monsterDmg + ". Ваше HP: " + player.getHp());
-
             if (player.getHp() <= 0) {
                 System.out.println("Вы погибли! Игра окончена.");
                 System.exit(0);
             }
         });
 
-        // Существующие команды — без изменений
         commands.put("save", (ctx, a) -> SaveLoad.save(ctx));
         commands.put("load", (ctx, a) -> SaveLoad.load(ctx));
         commands.put("scores", (ctx, a) -> SaveLoad.printScores());
         commands.put("exit", (ctx, a) -> {
-            System.out.println("Пока!");
+            SaveLoad.writeScore(ctx.getPlayer().getName(), ctx.getScore());
+            System.out.println("Результат сохранён. Пока!");
             System.exit(0);
+        });
+        commands.put("alloc", (ctx, args) -> {
+            System.out.println("Выделяем память...");
+
+            Runtime rt = Runtime.getRuntime();
+            long before = rt.totalMemory() - rt.freeMemory();
+
+            // Создаём много временных объектов (например, списки строк)
+            List<List<String>> garbage = new ArrayList<>();
+            for (int i = 0; i < 10_000; i++) {
+                List<String> chunk = new ArrayList<>();
+                for (int j = 0; j < 100; j++) {
+                    chunk.add("Объект-" + i + "-" + j);
+                }
+                garbage.add(chunk);
+            }
+
+            long afterAlloc = rt.totalMemory() - rt.freeMemory();
+            System.out.println("Память после выделения: " + (afterAlloc - before) / 1024 + " КБ");
+
+            // Очищаем ссылку — объекты становятся мусором
+            garbage = null;
+
+            // Подсказка GC (не гарантирует немедленного запуска!)
+            System.gc();
+
+            // Ждём немного, чтобы GC успел поработать (в учебных целях)
+            try { Thread.sleep(100); } catch (InterruptedException ignored) {}
+
+            long afterGC = rt.totalMemory() - rt.freeMemory();
+            System.out.println("Память после GC: " + (afterGC - before) / 1024 + " КБ");
+            System.out.println("Мусор собран. Память освобождена.");
         });
     }
 
@@ -157,10 +196,14 @@ public class Game {
         Room square = new Room("Площадь", "Каменная площадь с фонтаном.");
         Room forest = new Room("Лес", "Шелест листвы и птичий щебет.");
         Room cave = new Room("Пещера", "Темно и сыро.");
+
         square.getNeighbors().put("north", forest);
         forest.getNeighbors().put("south", square);
         forest.getNeighbors().put("east", cave);
         cave.getNeighbors().put("west", forest);
+
+        // 🔑 Ключ в пещере
+        cave.getItems().add(new Key("Старинный ключ"));
 
         forest.getItems().add(new Potion("Малое зелье", 5));
         forest.setMonster(new Monster("Волк", 1, 8));
@@ -169,7 +212,7 @@ public class Game {
     }
 
     public void run() {
-        System.out.println("DungeonMini (TEMPLATE). 'help' — команды.");
+        System.out.println("DungeonMini. 'help' — команды.");
         try (BufferedReader in = new BufferedReader(new InputStreamReader(System.in))) {
             while (true) {
                 System.out.print("> ");
